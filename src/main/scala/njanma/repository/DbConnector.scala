@@ -1,4 +1,4 @@
-package njanma.db
+package njanma.repository
 
 import cats.effect.IO
 import cats.implicits._

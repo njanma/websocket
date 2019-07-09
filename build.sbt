@@ -6,6 +6,8 @@ scalaVersion := "2.12.8"
 
 scalacOptions += "-Ypartial-unification"
 
+resolvers += Resolver.sonatypeRepo("releases")
+
 lazy val circeVersion = "0.10.0"
 lazy val doobieVersion = "0.6.0"
 
@@ -17,9 +19,12 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser"
+  "io.circe" %% "circe-parser",
+  "io.circe" %% "circe-generic-extras"
 ).map(_ % circeVersion)
 
 libraryDependencies += "com.typesafe.akka" %% "akka-http" % "10.1.8"
 libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.5.19"
 libraryDependencies += "de.heikoseeberger" %% "akka-http-circe" % "1.25.2"
+
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
