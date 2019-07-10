@@ -1,47 +1,45 @@
 package njanma.actor
 
-import akka.actor.{Actor, Props}
-import cats.free.Free
-import doobie._
-import doobie.free.connection
+import akka.actor.{Actor, ActorLogging, Props}
 import doobie.implicits._
 import njanma.dto.Request.{AddTable, UpdateTable}
-import njanma.dto.Response.TableAdded
+import njanma.dto.Response.{TableAdded, TableUpdated}
 import njanma.entity.Table
 import njanma.repository.TableRepository
+
+import scala.language.postfixOps
 
 object TableActor {
   def props(tableRepository: TableRepository): Props =
     Props(new TableActor(tableRepository))
 }
 
-class TableActor(repository: TableRepository) extends Actor {
+class TableActor(repository: TableRepository) extends Actor with ActorLogging{
   private val xa = repository.xa
 
   override def receive: Receive = {
     case AddTable(None, table) =>
       sender() ! TableAdded(
         repository
-          .insertOrUpdate(Table(table, None))
+          .save(Table(table))
           .transact(xa)
           .unsafeRunSync()
       )
-    case AddTable(Some(afterId), table) =>
-      val rollBacked = Transactor.after.set(xa, HC.rollback)
-      val repo = repository
-      val tables = repo
+    case AddTable(after_id@Some(afterId), table) =>
+      val tables = repository
         .getAllAfterId(afterId)
         .transact(xa)
         .unsafeRunSync()
       tables
         .map(t => t.copy(ordering = t.ordering.map(_ + 1)))
-        .map(repo.insertOrUpdate)
+        .map(repository.update)
         .foreach(_.transact(xa).unsafeRunSync())
-      val unit: Free[connection.ConnectionOp, Table] = for {
-        byAfterId <- repo.getOne(afterId)
-        u <- repo.insertOrUpdate(Table(table, byAfterId.ordering.map(_ + 1)))
-      } yield u
-      sender() ! TableAdded(unit.transact(xa).unsafeRunSync())
-    case UpdateTable(table) => repository.insertOrUpdate(Table(table, None))
+      val newTable = for {
+        byAfterId <- repository.getOne(afterId)
+        newbie <- repository.save(Table(byAfterId.ordering.map(_ + 1), table))
+      } yield newbie
+      sender() ! TableAdded(after_id, newTable.transact(xa).unsafeRunSync())
+    case UpdateTable(table) =>
+      sender() ! TableUpdated(repository.update(Table(table)).transact(xa).unsafeRunSync())
   }
 }
