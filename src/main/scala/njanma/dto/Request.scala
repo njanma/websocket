@@ -1,6 +1,7 @@
 package njanma.dto
 
 import cats.syntax.functor._
+import io.circe.generic.JsonCodec
 import io.circe.generic.auto._
 import io.circe.{Decoder, DecodingFailure}
 
@@ -16,7 +17,7 @@ object Request {
 
   case class UnsubscribeTables() extends Request("unsubscribe_tables")
 
-  case class TableRequest(id: Option[Int], name: String, participants: Int)
+  @JsonCodec case class TableRequest(id: Option[Int], name: String, participants: Int)
 
   case class AddTable(after_id: Option[Int], table: TableRequest)
       extends Request("add_table")
@@ -25,7 +26,7 @@ object Request {
 
   case class UpdateTable(table: TableRequest) extends Request("update_table")
 
-  private val subscribeTablesDecoder: Decoder[Request] = Decoder.instance {
+  private implicit val subscribeTablesDecoder: Decoder[Request] = Decoder.instance {
     cursor =>
       cursor.downField("$type").as[String] match {
         case Right(t) if t.equals("subscribe_tables") =>
@@ -34,7 +35,7 @@ object Request {
       }
   }
 
-  private val unsubscribeTablesDecoder: Decoder[Request] = Decoder.instance {
+  private implicit val unsubscribeTablesDecoder: Decoder[Request] = Decoder.instance {
     cursor =>
       cursor.downField("$type").as[String] match {
         case Right(t) if t.equals("unsubscribe_tables") =>
@@ -42,7 +43,7 @@ object Request {
         case _ => Left(DecodingFailure("fail", Nil))
       }
   }
-  implicit val decodeEvent: Decoder[Request] =
+  implicit val decodeRequest: Decoder[Request] =
     List[Decoder[Request]](
       Decoder[Login].widen,
       subscribeTablesDecoder,

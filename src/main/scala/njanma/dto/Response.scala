@@ -2,6 +2,7 @@ package njanma.dto
 
 import io.circe.Encoder
 import njanma.dto.Request.TableRequest
+import njanma.entity.Table
 
 sealed abstract class Response(val $type: String)
 
@@ -16,6 +17,11 @@ object Response {
 
   case class TableAdded(after_id: Option[Int], table: TableRequest)
       extends Response("table_added")
+
+  object TableAdded {
+    def apply(table: Table): TableAdded =
+      TableAdded(None, TableRequest(table.id, table.name, table.participants))
+  }
 
   case class TableRemoved(id: Int) extends Response("table_removed")
 
@@ -32,10 +38,16 @@ object Response {
   implicit val loginFailedEncoder: Encoder[LoginFailed] =
     Encoder.forProduct1("$type")(loginFailed => loginFailed.$type)
 
+  implicit val tableAddedEncoder: Encoder[TableAdded] =
+    Encoder.forProduct3("$type", "after_id", "table")(
+      tableAdded => (tableAdded.$type, tableAdded.after_id, tableAdded.table)
+    )
+
   implicit val responseEncoder: Encoder[Response] = Encoder.instance {
     case pong @ Pong(_) => pongEncoder(pong)
     case loginSuccessful @ LoginSuccessful(_) =>
       loginSuccessfulEncoder(loginSuccessful)
     case loginFailed @ LoginFailed() => loginFailedEncoder(loginFailed)
+    case tableAdded: TableAdded      => tableAddedEncoder(tableAdded)
   }
 }

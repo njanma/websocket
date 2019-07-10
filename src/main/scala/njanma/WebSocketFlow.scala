@@ -22,7 +22,7 @@ import scala.language.postfixOps
 
 trait WebSocketFlow {
 
-  implicit lazy val timeout: Timeout = Timeout(5 seconds)
+  implicit lazy val timeout: Timeout = Timeout(10 days)
 
   implicit def materializer: ActorMaterializer
 
