@@ -1,8 +1,8 @@
 package njanma.dto
 
 import cats.syntax.functor._
-import io.circe.Decoder
 import io.circe.generic.auto._
+import io.circe.{Decoder, DecodingFailure}
 
 sealed abstract class Request(val $type: String)
 
@@ -25,11 +25,28 @@ object Request {
 
   case class UpdateTable(table: TableRequest) extends Request("update_table")
 
+  private val subscribeTablesDecoder: Decoder[Request] = Decoder.instance {
+    cursor =>
+      cursor.downField("$type").as[String] match {
+        case Right(t) if t.equals("subscribe_tables") =>
+          Right(SubscribeTables())
+        case _ => Left(DecodingFailure("fail", Nil))
+      }
+  }
+
+  private val unsubscribeTablesDecoder: Decoder[Request] = Decoder.instance {
+    cursor =>
+      cursor.downField("$type").as[String] match {
+        case Right(t) if t.equals("unsubscribe_tables") =>
+          Right(UnsubscribeTables())
+        case _ => Left(DecodingFailure("fail", Nil))
+      }
+  }
   implicit val decodeEvent: Decoder[Request] =
     List[Decoder[Request]](
       Decoder[Login].widen,
-      Decoder[SubscribeTables].widen,
-      Decoder[UnsubscribeTables].widen,
+      subscribeTablesDecoder,
+      unsubscribeTablesDecoder,
       Decoder[Ping].widen,
       Decoder[AddTable].widen,
       Decoder[RemoveTable].widen,

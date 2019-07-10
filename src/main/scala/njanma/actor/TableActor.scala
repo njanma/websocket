@@ -11,7 +11,7 @@ class TableActor(repository: TableRepository) extends Actor {
 
   override def receive: Receive = {
     case AddTable(None, table) =>
-      repository.insertOrUpdate(Table(table, None))
+      sender() ! repository.insertOrUpdate(Table(table, None)).transact(repository.xa).unsafeRunSync()
     case AddTable(Some(afterId), table) =>
       val xa = Transactor.after.set(repository.xa, HC.rollback)
       for {
