@@ -14,7 +14,7 @@ object DbConnector {
     implicit val cs = IO.contextShift(ExecutionContext.global)
     val xa = Transactor.fromDriverManager[IO](
       "org.postgresql.Driver",
-      "jdbc:postgresql:users",
+      "jdbc:postgresql:tables",
       "postgres",
       "secret"
     )

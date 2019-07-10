@@ -11,21 +11,27 @@ object Response {
   case class LoginFailed() extends Response("login_failed")
 
   case class LoginSuccessful(user_type: String)
-      extends Response("login_successful")
+    extends Response("login_successful")
 
   case class Pong(seq: Int) extends Response("pong")
 
   case class TableAdded(after_id: Option[Int], table: TableRequest)
-      extends Response("table_added")
+    extends Response("table_added")
 
   object TableAdded {
-    def apply(table: Table): TableAdded =
+    def apply(table: Table): TableAdded = apply(None, table)
+
+    def apply(afterId: Option[Long], table: Table): TableAdded =
       TableAdded(None, TableRequest(table.id, table.name, table.participants))
   }
 
   case class TableRemoved(id: Int) extends Response("table_removed")
 
   case class TableUpdated(table: TableRequest) extends Response("table_updated")
+
+  object TableUpdated {
+    def apply(table: Table): TableUpdated = new TableUpdated(TableRequest(table.id, table.name, table.participants))
+  }
 
   implicit val pongEncoder: Encoder[Pong] =
     Encoder.forProduct2("$type", "seq")(pong => (pong.$type, pong.seq))
@@ -43,11 +49,16 @@ object Response {
       tableAdded => (tableAdded.$type, tableAdded.after_id, tableAdded.table)
     )
 
+  implicit val tableUpdatedEncoder: Encoder[TableUpdated] =
+    Encoder.forProduct2("$type", "table")(
+      tableUpdated => (tableUpdated.$type, tableUpdated.table)
+    )
+
   implicit val responseEncoder: Encoder[Response] = Encoder.instance {
-    case pong @ Pong(_) => pongEncoder(pong)
-    case loginSuccessful @ LoginSuccessful(_) =>
-      loginSuccessfulEncoder(loginSuccessful)
-    case loginFailed @ LoginFailed() => loginFailedEncoder(loginFailed)
-    case tableAdded: TableAdded      => tableAddedEncoder(tableAdded)
+    case pong: Pong => pongEncoder(pong)
+    case loginSuccessful: LoginSuccessful => loginSuccessfulEncoder(loginSuccessful)
+    case loginFailed: LoginFailed => loginFailedEncoder(loginFailed)
+    case tableAdded: TableAdded => tableAddedEncoder(tableAdded)
+    case tableUpdated: TableUpdated => tableUpdatedEncoder(tableUpdated)
   }
 }

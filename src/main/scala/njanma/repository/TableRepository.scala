@@ -10,21 +10,28 @@ import njanma.entity.Table
 class TableRepository(connector: DbConnector) {
   val xa: Transactor[IO] = connector.xa
 
-  def insertOrUpdate(table: Table): ConnectionIO[Table] = table match {
-    case Table(None, name, participants, ordering) =>
-      sql"""insert into "table"(name, participants, ordering)
-            values($name, $participants, $ordering)"""
-        .updateWithLogHandler(LogHandler.jdkLogHandler)
-        .withUniqueGeneratedKeys[Table](
-          "id",
-          "name",
-          "participants",
-          "ordering"
-        )
-    case table @ Table(Some(id), name, participants, ordering) =>
-      sql"""insert into "table"(id, name, participants, ordering)
-            values($id, $name, $participants, $ordering)""".updateWithLogHandler(LogHandler.jdkLogHandler).run
-      table.pure[ConnectionIO]
+  def save(table: Table): ConnectionIO[Table] = table match {
+    case Table(_, name, participants, None) =>
+      insertOrUpdate(
+        sql"""insert into "table"(name, participants)
+              values($name, $participants)""")
+    case Table(_, name, participants, Some(ord)) =>
+      insertOrUpdate(
+        sql"""insert into "table"(name, participants, ordering)
+              values($name, $participants, $ord)""")
+  }
+
+  def update(table: Table): ConnectionIO[Table] = table match {
+    case Table(Some(id), name, participants, Some(ord)) =>
+      insertOrUpdate(
+        sql"""update "table"
+            set name=$name, participants=$participants, ordering=$ord
+            where id = $id""")
+    case Table(Some(id), name, participants, None) =>
+      insertOrUpdate(
+        sql"""update "table"
+            set name=$name, participants=$participants
+            where id = $id""")
   }
 
   def getAllAfterId(afterId: Long): ConnectionIO[List[Table]] =
@@ -39,4 +46,19 @@ class TableRepository(connector: DbConnector) {
       .queryWithLogHandler[Table](LogHandler.jdkLogHandler)
       .unique
 
+  def getAll(): ConnectionIO[List[Table]] =
+    sql"""select * from "table" order by ordering"""
+      .query[Table]
+      .stream
+      .compile
+      .toList
+
+  private def insertOrUpdate(sql: Fragment): ConnectionIO[Table] =
+    sql.updateWithLogHandler(LogHandler.jdkLogHandler)
+      .withUniqueGeneratedKeys[Table](
+        "id",
+        "name",
+        "participants",
+        "ordering"
+      )
 }
