@@ -1,7 +1,6 @@
 package njanma.repository
 
 import cats.effect._
-import cats.implicits._
 import doobie._
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
