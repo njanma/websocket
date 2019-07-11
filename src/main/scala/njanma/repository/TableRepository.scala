@@ -1,9 +1,11 @@
 package njanma.repository
 
 import cats.effect._
+import cats.implicits._
 import doobie._
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
+import fs2.Stream
 import njanma.entity.Table
 
 class TableRepository(connector: DbConnector) {
@@ -11,24 +13,32 @@ class TableRepository(connector: DbConnector) {
 
   def save(table: Table): ConnectionIO[Table] = table match {
     case Table(_, name, participants, None) =>
-      insertOrUpdate(
-        sql"""insert into "table"(name, participants)
+      insertOrUpdate(sql"""insert into "table"(name, participants)
               values($name, $participants)""")
     case Table(_, name, participants, Some(ord)) =>
-      insertOrUpdate(
-        sql"""insert into "table"(name, participants, ordering)
+      insertOrUpdate(sql"""insert into "table"(name, participants, ordering)
               values($name, $participants, $ord)""")
+  }
+  def update(tables: List[Table]): Stream[doobie.ConnectionIO, Table] = {
+    Param
+    Update[Table](s"""update "table"
+            set name=?, participants=?, ordering=?
+            where id = ?""")
+      .updateManyWithGeneratedKeys[Table](
+        "id",
+        "name",
+        "participants",
+        "ordering"
+      )(tables)
   }
 
   def update(table: Table): ConnectionIO[Table] = table match {
     case Table(Some(id), name, participants, Some(ord)) =>
-      insertOrUpdate(
-        sql"""update "table"
+      insertOrUpdate(sql"""update "table"
             set name=$name, participants=$participants, ordering=$ord
             where id = $id""")
     case Table(Some(id), name, participants, None) =>
-      insertOrUpdate(
-        sql"""update "table"
+      insertOrUpdate(sql"""update "table"
             set name=$name, participants=$participants
             where id = $id""")
   }
@@ -53,11 +63,7 @@ class TableRepository(connector: DbConnector) {
       .toList
 
   private def insertOrUpdate(sql: Fragment): ConnectionIO[Table] =
-    sql.updateWithLogHandler(LogHandler.jdkLogHandler)
-      .withUniqueGeneratedKeys[Table](
-        "id",
-        "name",
-        "participants",
-        "ordering"
-      )
+    sql
+      .updateWithLogHandler(LogHandler.jdkLogHandler)
+      .withUniqueGeneratedKeys[Table]("id", "name", "participants", "ordering")
 }
