@@ -7,6 +7,7 @@ import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import njanma.actor.TableActor
 import njanma.config.DbConfig
 import njanma.repository.{DbConnector, TableRepository}
+import org.flywaydb.core.Flyway
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 
@@ -22,12 +23,15 @@ object Server extends App with WebSocketFlow {
     .withSupervisionStrategy(_ => Supervision.Restart))
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val dbConnector: DbConnector = DbConnector(loadConfigOrThrow[DbConfig].db)
+  private val dbConfig = loadConfigOrThrow[DbConfig].db
+  val dbConnector: DbConnector = DbConnector(dbConfig)
 
   val tableRepository: TableRepository = new TableRepository(dbConnector)
   val tableActor: ActorRef = system.actorOf(TableActor.props(tableRepository), "table-actor")
 
   lazy val routes: Route = webSocketRoute
+
+  Flyway.configure().dataSource(dbConfig.dataSource, dbConfig.user, dbConfig.password).load().migrate()
 
   val binding: Future[Http.ServerBinding] =
     Http().bindAndHandle(routes, "localhost", 9000)

@@ -15,7 +15,7 @@ object DbConnector {
     implicit val cs = IO.contextShift(ExecutionContext.global)
     val xa = Transactor.fromDriverManager[IO](
       "org.postgresql.Driver",
-      s"jdbc:postgresql:${dbConfig.name}",
+      s"${dbConfig.dataSource}",
       s"${dbConfig.user}",
       s"${dbConfig.password}"
     )

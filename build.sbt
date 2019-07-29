@@ -27,6 +27,8 @@ libraryDependencies += "com.typesafe.akka" %% "akka-http" % "10.1.8"
 libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.5.19"
 libraryDependencies += "de.heikoseeberger" %% "akka-http-circe" % "1.25.2"
 libraryDependencies += "com.github.pureconfig" %% "pureconfig" % "0.11.1"
+libraryDependencies += "org.flywaydb" % "flyway-core" % "5.2.4"
+
 
 addCompilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full

@@ -1,8 +1,8 @@
-create table ordering(
+create table if not exists ordering(
     num serial
 );
 
-create table "table"
+create table if not exists "table"
 (
     id           serial primary key,
     name         varchar(255) unique,
