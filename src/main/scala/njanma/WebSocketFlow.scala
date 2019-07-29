@@ -26,7 +26,7 @@ trait WebSocketFlow {
 
   implicit def materializer: ActorMaterializer
 
-  def tableActor: ActorSelection
+  def tableActor: ActorRef
 
   def webSocketRoute: Route = path("")(handleWebSocketMessages(flow))
 

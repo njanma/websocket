@@ -1,18 +1,16 @@
 package njanma
 
-import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{ActorRef, ActorSelection, ActorSystem, OneForOneStrategy}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
-import akka.pattern.{Backoff, BackoffSupervisor}
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import njanma.actor.TableActor
 import njanma.config.DbConfig
 import njanma.repository.{DbConnector, TableRepository}
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
 
-import scala.concurrent.duration.{Duration, _}
+import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -20,29 +18,14 @@ import scala.util.{Failure, Success}
 object Server extends App with WebSocketFlow {
 
   implicit val system: ActorSystem = ActorSystem("server-system")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system)
+    .withSupervisionStrategy(_ => Supervision.Restart))
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   val dbConnector: DbConnector = DbConnector(loadConfigOrThrow[DbConfig].db)
 
   val tableRepository: TableRepository = new TableRepository(dbConnector)
-  val tableSupervisor: ActorRef = system.actorOf(
-    BackoffSupervisor.props(
-      Backoff
-        .onStop(
-          TableActor.props(tableRepository),
-          "table-actor",
-          3 seconds,
-          30 seconds,
-          0
-        )
-        .withSupervisorStrategy(OneForOneStrategy(5, 5 second) {
-          case _ => Restart
-        })
-    ),
-    "table-actor"
-  )
-  val tableActor: ActorSelection = system.actorSelection("/user/table-actor")
+  val tableActor: ActorRef = system.actorOf(TableActor.props(tableRepository), "table-actor")
 
   lazy val routes: Route = webSocketRoute
 
