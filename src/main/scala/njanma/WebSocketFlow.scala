@@ -2,10 +2,12 @@ package njanma
 
 import akka.NotUsed
 import akka.actor.ActorRef
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.headers.{ModeledCustomHeader, ModeledCustomHeaderCompanion}
-import akka.http.scaladsl.model.ws.{Message, TextMessage}
+import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.server.directives.Credentials
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
@@ -31,8 +33,8 @@ trait WebSocketFlow {
 
   def tableActor: ActorRef
 
-  def webSocketRoute: Route = path("")(authenticateBasic(realm = "sec", userPassAuthenticator) { usr =>
-    authorizeAsync(_ => hasPermissions(usr)) {
+  def webSocketRoute: Route = path("connect")(authenticateBasic(realm = "sec", userPassAuthenticator) { usr =>
+    authorize(hasPermissions(usr)) {
       handleWebSocketMessages(flow)
     }
   })
@@ -73,8 +75,8 @@ trait WebSocketFlow {
 
   val validUsers = Set("john", "peter", "tiger", "susan")
 
-  def hasPermissions(user: User): Future[Boolean] = {
-    Future.successful(validUsers.contains(user.name))
+  def hasPermissions(user: User): Boolean = {
+    validUsers.contains(user.name)
   }
 
   final class ApiTokenHeader(token: String) extends ModeledCustomHeader[ApiTokenHeader] {
