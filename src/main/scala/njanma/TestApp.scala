@@ -33,7 +33,7 @@ object TestApp extends App {
       .concatMat(Source.maybe[Message])(Keep.right))(Keep.right)
 
 
-  private val credentials: scala.collection.immutable.Seq[HttpHeader] = Authorization(BasicHttpCredentials("john", "p4ssw0rd"))::Nil
+  private val credentials: scala.collection.immutable.Seq[HttpHeader] = Authorization(BasicHttpCredentials("user", "password"))::Nil
   Http().singleWebSocketRequest(
     WebSocketRequest("ws://127.0.0.1:9000/connect",  extraHeaders = credentials, None),
     flow, Http().defaultClientHttpsContext, None,

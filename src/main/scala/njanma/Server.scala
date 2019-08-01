@@ -6,7 +6,8 @@ import akka.http.scaladsl.server.Route
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import njanma.actor.TableActor
 import njanma.config.DbConfig
-import njanma.repository.{DbConnector, TableRepository}
+import njanma.repository.{DbConnector, TableRepository, UserRepository}
+import njanma.security.UserAuthentificator
 import org.flywaydb.core.Flyway
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
@@ -27,7 +28,10 @@ object Server extends App with WebSocketFlow {
   val dbConnector: DbConnector = DbConnector(dbConfig)
 
   val tableRepository: TableRepository = new TableRepository(dbConnector)
-  val tableActor: ActorRef = system.actorOf(TableActor.props(tableRepository), "table-actor")
+  val userRepository: UserRepository = new UserRepository(dbConnector)
+
+  override val tableActor: ActorRef = system.actorOf(TableActor.props(tableRepository), "table-actor")
+  override val userAuthenticator: UserAuthentificator = new UserAuthentificator(userRepository)
 
   lazy val routes: Route = webSocketRoute
 

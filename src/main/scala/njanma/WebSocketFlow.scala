@@ -18,6 +18,8 @@ import io.circe.syntax._
 import njanma.dto.Request.{AddTable, Ping, UpdateTable}
 import njanma.dto.Response.Pong
 import njanma.dto.{Request, Response}
+import njanma.entity.User
+import njanma.security.UserAuthentificator
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
@@ -32,9 +34,10 @@ trait WebSocketFlow {
   implicit def materializer: ActorMaterializer
 
   def tableActor: ActorRef
+  def userAuthenticator: UserAuthentificator
 
-  def webSocketRoute: Route = path("connect")(authenticateBasic(realm = "sec", userPassAuthenticator) { usr =>
-    authorize(hasPermissions(usr)) {
+  def webSocketRoute: Route = path("connect")(authenticateBasic(realm = "sec", userAuthenticator.check) { usr =>
+    authorize(userAuthenticator.hasPermissions(usr)) {
       handleWebSocketMessages(flow)
     }
   })
@@ -61,38 +64,4 @@ trait WebSocketFlow {
         out => Future(TextMessage(out.asJson.spaces2))
       )
   }
-
-  def userPassAuthenticator(credentials: Credentials): Option[User] = {
-    credentials match {
-      case p@Credentials.Provided(id) =>
-        if (p.verify("p4ssw0rd")) Some(User(id))
-        else None
-      case _ => None
-    }
-  }
-
-  case class User(name: String)
-
-  val validUsers = Set("john", "peter", "tiger", "susan")
-
-  def hasPermissions(user: User): Boolean = {
-    validUsers.contains(user.name)
-  }
-
-  final class ApiTokenHeader(token: String) extends ModeledCustomHeader[ApiTokenHeader] {
-    override def renderInRequests = true
-
-    override def renderInResponses = false
-
-    override val companion = ApiTokenHeader
-
-    override def value: String = token
-  }
-
-  object ApiTokenHeader extends ModeledCustomHeaderCompanion[ApiTokenHeader] {
-    override val name = "apiKey"
-
-    override def parse(value: String) = Try(new ApiTokenHeader(value))
-  }
-
 }
