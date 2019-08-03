@@ -9,7 +9,7 @@ import tsec.common._
 import tsec.hashing.jca._
 import doobie.implicits._
 
-class UserAuthentificator(userRepository: UserRepository) {
+class UserAuthenticator(userRepository: UserRepository) {
   private val xa = userRepository.xa
 
   def check(credentials: Credentials): Option[User] = {

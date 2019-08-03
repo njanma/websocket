@@ -3,7 +3,7 @@ package njanma.dto
 import cats.syntax.functor._
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto._
-import io.circe.{Decoder, DecodingFailure, HCursor}
+import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
 
 sealed abstract class Request(val $type: String)
 
@@ -25,11 +25,10 @@ object Request {
   case class RemoveTable(id: Long) extends Request("remove_table")
 
   @JsonCodec case class UpdateTable(table: TableRequest) extends Request("update_table")
-//
-//  private implicit val subscribeTablesDecoder: Decoder[Request] = Decoder.instance(getDecoderByType)
-//
-//  private implicit val unsubscribeTablesDecoder: Decoder[Request] = Decoder.instance(getDecoderByType)
-//
+
+  implicit val pongEncoder: Encoder[Ping] =
+    Encoder.forProduct2("$type", "seq")(ping => (ping.$type, ping.seq))
+
   implicit val decodeRequest: Decoder[Request] =
     List[Decoder[Request]](
       Decoder[Login].widen,

@@ -19,13 +19,12 @@ import njanma.dto.Request.{AddTable, Ping, UpdateTable}
 import njanma.dto.Response.Pong
 import njanma.dto.{Request, Response}
 import njanma.entity.User
-import njanma.security.UserAuthentificator
+import njanma.security.UserAuthenticator
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Try
 
 trait WebSocketFlow {
 
@@ -34,9 +33,10 @@ trait WebSocketFlow {
   implicit def materializer: ActorMaterializer
 
   def tableActor: ActorRef
-  def userAuthenticator: UserAuthentificator
+  def userAuthenticator: UserAuthenticator
+  val connectionPath: String
 
-  def webSocketRoute: Route = path("connect")(authenticateBasic(realm = "sec", userAuthenticator.check) { usr =>
+  def webSocketRoute: Route = path(connectionPath)(authenticateBasic(realm = "sec", userAuthenticator.check) { usr =>
     authorize(userAuthenticator.hasPermissions(usr)) {
       handleWebSocketMessages(flow)
     }

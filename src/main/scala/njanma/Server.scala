@@ -5,9 +5,9 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
 import njanma.actor.TableActor
-import njanma.config.DbConfig
+import njanma.config.{AppConfig, DbConfig, ServerConfig}
 import njanma.repository.{DbConnector, TableRepository, UserRepository}
-import njanma.security.UserAuthentificator
+import njanma.security.UserAuthenticator
 import org.flywaydb.core.Flyway
 import pureconfig.loadConfigOrThrow
 import pureconfig.generic.auto._
@@ -24,21 +24,22 @@ object Server extends App with WebSocketFlow {
     .withSupervisionStrategy(_ => Supervision.Restart))
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  private val dbConfig = loadConfigOrThrow[DbConfig].db
-  val dbConnector: DbConnector = DbConnector(dbConfig)
+  private val appConfig = loadConfigOrThrow[AppConfig]
+  private val dbConnector: DbConnector = DbConnector(appConfig.db)
 
   val tableRepository: TableRepository = new TableRepository(dbConnector)
   val userRepository: UserRepository = new UserRepository(dbConnector)
+  override val connectionPath: String = appConfig.server.connectionPath
 
   override val tableActor: ActorRef = system.actorOf(TableActor.props(tableRepository), "table-actor")
-  override val userAuthenticator: UserAuthentificator = new UserAuthentificator(userRepository)
+  override val userAuthenticator: UserAuthenticator = new UserAuthenticator(userRepository)
 
   lazy val routes: Route = webSocketRoute
 
-  Flyway.configure().dataSource(dbConfig.dataSource, dbConfig.user, dbConfig.password).load().migrate()
+  Flyway.configure().dataSource(appConfig.db.dataSource, appConfig.db.user, appConfig.db.password).load().migrate()
 
   val binding: Future[Http.ServerBinding] =
-    Http().bindAndHandle(routes, "localhost", 9000)
+    Http().bindAndHandle(routes, appConfig.server.host, appConfig.server.port)
 
   binding.onComplete {
     case Success(bound) =>

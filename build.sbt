@@ -13,12 +13,13 @@ lazy val circeVersion = "0.10.0"
 lazy val akkaHttpCirceVersion = "1.25.2"
 lazy val doobieVersion = "0.6.0"
 lazy val akkaHttpVersion = "10.1.9"
-lazy val scalatestVersion = "3.0.8"
 lazy val flywayVersion = "5.2.4"
 lazy val akkaStreamVersion = "2.5.23"
-lazy val akkaStreamTestkitVersion = "2.5.23"
 lazy val pureconfigVersion = "0.11.1"
 lazy val tsecV = "0.0.1-M11"
+lazy val scalatestVersion = "3.0.8"
+lazy val scalamockVersion = "4.1.0"
+lazy val akkaStreamTestkitVersion = "2.5.23"
 
 libraryDependencies ++= Seq(
   "org.tpolecat" %% "doobie-core",
@@ -42,7 +43,8 @@ libraryDependencies += "com.github.pureconfig" %% "pureconfig" % pureconfigVersi
 libraryDependencies += "org.flywaydb" % "flyway-core" % flywayVersion
 
 libraryDependencies += "org.scalactic" %% "scalactic" % scalatestVersion
-libraryDependencies += "org.scalatest" %% "scalatest" % scalatestVersion % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % scalatestVersion % Test
+libraryDependencies += "org.scalamock" %% "scalamock" % scalamockVersion % Test
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream-testkit" % akkaStreamTestkitVersion,
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion
