@@ -2,13 +2,9 @@ package njanma
 
 import akka.NotUsed
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
-import akka.http.scaladsl.model.headers.{ModeledCustomHeader, ModeledCustomHeaderCompanion}
-import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
+import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.server.directives.Credentials
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
@@ -18,7 +14,6 @@ import io.circe.syntax._
 import njanma.dto.Request.{AddTable, Ping, UpdateTable}
 import njanma.dto.Response.Pong
 import njanma.dto.{Request, Response}
-import njanma.entity.User
 import njanma.security.UserAuthenticator
 
 import scala.concurrent.ExecutionContext.Implicits._
@@ -36,11 +31,14 @@ trait WebSocketFlow {
   def userAuthenticator: UserAuthenticator
   val connectionPath: String
 
-  def webSocketRoute: Route = path(connectionPath)(authenticateBasic(realm = "sec", userAuthenticator.check) { usr =>
-    authorize(userAuthenticator.hasPermissions(usr)) {
-      handleWebSocketMessages(flow)
-    }
-  })
+  def webSocketRoute: Route =
+    path(connectionPath)(
+      authenticateBasic(realm = "sec", userAuthenticator.check) { usr =>
+        authorize(userAuthenticator.hasPermissions(usr)) {
+          handleWebSocketMessages(flow)
+        }
+      }
+    )
 
   private def flow: Flow[Message, Message, NotUsed] = {
     Flow[Message]
@@ -56,9 +54,10 @@ trait WebSocketFlow {
           } yield res
       )
       .mapAsync(Runtime.getRuntime.availableProcessors) {
-        case Ping(num) => Future(Pong(num))
+        case Ping(num)          => Future(Pong(num))
         case addTable: AddTable => (tableActor ? addTable).mapTo[Response]
-        case updateTable: UpdateTable => (tableActor ? updateTable).mapTo[Response]
+        case updateTable: UpdateTable =>
+          (tableActor ? updateTable).mapTo[Response]
       }
       .mapAsync(Runtime.getRuntime.availableProcessors)(
         out => Future(TextMessage(out.asJson.spaces2))

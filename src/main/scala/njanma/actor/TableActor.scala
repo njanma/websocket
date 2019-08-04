@@ -30,11 +30,11 @@ class TableActor(repository: TableRepository) extends Actor with ActorLogging {
       val newTable = for {
         tables <- repository.getAllAfterId(afterId)
         _ <- repository
-          .update(tables.map(t => t.copy(ordering = t.ordering.map(_ + 1))))
+          .update(tables.map(t => t.copy(position = t.position.map(_ + 1))))
           .compile
           .toList
         byAfterId <- repository.getOne(afterId)
-        newbie <- repository.save(Table(byAfterId.ordering.map(_ + 1), table))
+        newbie <- repository.save(Table(byAfterId.position.map(_ + 1), table))
       } yield newbie
       sender() ! TableAdded(after_id, newTable.transact(xa).unsafeRunSync())
     case UpdateTable(table) =>

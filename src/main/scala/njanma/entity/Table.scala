@@ -5,7 +5,7 @@ import njanma.dto.Request.TableRequest
 case class Table(id: Option[Long],
                  name: String,
                  participants: Int,
-                 ordering: Option[Long])
+                 position: Option[Long])
 
 object Table {
   def apply(table: TableRequest): Table = apply(None, table)

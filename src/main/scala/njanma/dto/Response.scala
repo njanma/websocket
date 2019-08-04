@@ -15,14 +15,14 @@ object Response {
 
   case class Pong(seq: Int) extends Response("pong")
 
-  case class TableAdded(after_id: Option[Int], table: TableRequest)
+  case class TableAdded(after_id: Option[Long], table: TableRequest)
     extends Response("table_added")
 
   object TableAdded {
     def apply(table: Table): TableAdded = apply(None, table)
 
     def apply(afterId: Option[Long], table: Table): TableAdded =
-      TableAdded(None, TableRequest(table.id, table.name, table.participants))
+      TableAdded(afterId, TableRequest(table.id, table.name, table.participants))
   }
 
   case class TableRemoved(id: Int) extends Response("table_removed")

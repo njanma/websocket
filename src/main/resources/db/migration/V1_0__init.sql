@@ -1,13 +1,13 @@
-create table if not exists ordering(
+create table if not exists positions(
     num serial
 );
 
-create table if not exists "table"
+create table if not exists tables
 (
     id           serial primary key,
     name         varchar(255) unique,
     participants int not null default 0,
-    ordering     bigint not null default nextval('ordering_num_seq')
+    position     bigint not null default nextval('positions_num_seq') --used this field for fast fetch data in order
 );
 
 create table if not exists users(
