@@ -10,7 +10,7 @@ import tsec.hashing.jca._
 import doobie.implicits._
 
 class UserAuthenticator(userRepository: UserRepository) {
-  private val xa = userRepository.xa
+  private lazy val xa = userRepository.xa
 
   def check(credentials: Credentials): Option[User] = {
     credentials match {

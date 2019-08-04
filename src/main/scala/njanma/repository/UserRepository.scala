@@ -8,7 +8,7 @@ import doobie.implicits._
 import njanma.entity.User
 
 class UserRepository(connector: DbConnector) {
-  val xa: Transactor[IO] = connector.xa
+  lazy val xa: Transactor[IO] = connector.xa
 
   def getOne(username: String): ConnectionIO[Option[User]] =
     sql"""select *

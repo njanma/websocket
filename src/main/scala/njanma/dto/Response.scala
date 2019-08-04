@@ -40,10 +40,8 @@ object Response {
   final case class TableList(tables: List[TableResponse])
       extends Response(Type.table_list)
 
-  final case class TableRemoved(id: Int) extends Response(Type.table_removed)
-
   final case class TableUpdated(table: TableRequest)
-      extends Response(Type.table_removed)
+      extends Response(Type.table_updated)
 
   object TableUpdated {
     def apply(table: Table): TableUpdated =
@@ -64,19 +62,17 @@ object Response {
     )
 
   implicit val tableListEncoder: Encoder[TableList] = deriveEncoder
-  implicit val tableRemovedEncoder: Encoder[TableRemoved] = deriveEncoder
 
   implicit val responseEncoder: Encoder[Response] = Encoder.instance {
     case pong: Pong                 => pongEncoder(pong)
     case tableAdded: TableAdded     => tableAddedEncoder(tableAdded)
     case tableUpdated: TableUpdated => tableUpdatedEncoder(tableUpdated)
     case tableList: TableList       => tableListEncoder(tableList)
-    case tableRemoved: TableRemoved => tableRemovedEncoder(tableRemoved)
   }
 
   object Type extends Enumeration {
     type Type = Value
-    val pong, table_list, table_added, table_removed = Value
+    val pong, table_list, table_added, table_updated = Value
 
     implicit val typeEncoder: Encoder[Type] = Encoder.enumEncoder(Type)
   }

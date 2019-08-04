@@ -58,8 +58,8 @@ trait WebSocketFlow {
         case addTable: AddTable => (tableActor ? addTable).mapTo[Response]
         case updateTable: UpdateTable =>
           (tableActor ? updateTable).mapTo[Response]
-        case subscribeTable: SubscribeTables =>
-          (tableActor ? subscribeTable).mapTo[Response]
+        case subscribeTables: SubscribeTables =>
+          (tableActor ? subscribeTables).mapTo[Response]
         case removeTable: RemoveTable =>
           (tableActor ? removeTable).mapTo[Response]
       }
