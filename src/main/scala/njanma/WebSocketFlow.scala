@@ -11,7 +11,7 @@ import akka.stream.scaladsl.Flow
 import akka.util.Timeout
 import io.circe.parser._
 import io.circe.syntax._
-import njanma.dto.Request.{AddTable, Ping, UpdateTable}
+import njanma.dto.Request.{AddTable, Ping, RemoveTable, SubscribeTables, UpdateTable}
 import njanma.dto.Response.Pong
 import njanma.dto.{Request, Response}
 import njanma.security.UserAuthenticator
@@ -58,6 +58,10 @@ trait WebSocketFlow {
         case addTable: AddTable => (tableActor ? addTable).mapTo[Response]
         case updateTable: UpdateTable =>
           (tableActor ? updateTable).mapTo[Response]
+        case subscribeTable: SubscribeTables =>
+          (tableActor ? subscribeTable).mapTo[Response]
+        case removeTable: RemoveTable =>
+          (tableActor ? removeTable).mapTo[Response]
       }
       .mapAsync(Runtime.getRuntime.availableProcessors)(
         out => Future(TextMessage(out.asJson.spaces2))

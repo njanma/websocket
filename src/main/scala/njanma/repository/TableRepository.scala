@@ -60,6 +60,11 @@ class TableRepository(connector: DbConnector) {
       .compile
       .toList
 
+  def delete(id: Long): ConnectionIO[Int] =
+    sql"""delete from tables where id = $id"""
+    .update
+    .run
+
   private def insertOrUpdate(sql: Fragment): ConnectionIO[Table] =
     sql
       .updateWithLogHandler(LogHandler.jdkLogHandler)
@@ -82,5 +87,4 @@ object TableRepository {
           fr" values($name, $participants" ++ maybePos.map(ord => fr", $ord)").getOrElse(fr")")
     }
   }
-
 }

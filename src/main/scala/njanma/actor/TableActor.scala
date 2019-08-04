@@ -2,9 +2,8 @@ package njanma.actor
 
 import akka.actor.{Actor, ActorLogging, Props}
 import doobie.implicits._
-import doobie.util.update.Update
-import njanma.dto.Request.{AddTable, UpdateTable}
-import njanma.dto.Response.{TableAdded, TableUpdated}
+import njanma.dto.Request.{AddTable, RemoveTable, SubscribeTables, UpdateTable}
+import njanma.dto.Response.{TableAdded, TableList, TableResponse, TableUpdated}
 import njanma.entity.Table
 import njanma.repository.TableRepository
 
@@ -41,5 +40,15 @@ class TableActor(repository: TableRepository) extends Actor with ActorLogging {
       sender() ! TableUpdated(
         repository.update(Table(table)).transact(xa).unsafeRunSync()
       )
+    case SubscribeTables() =>
+      sender() ! TableList(
+        repository
+          .getAll()
+          .transact(xa)
+          .unsafeRunSync()
+          .map(TableResponse.apply)
+      )
+    case RemoveTable(id) =>
+      repository.delete(id).transact(xa).unsafeRunSync()
   }
 }

@@ -2,43 +2,42 @@ package njanma.dto
 
 import cats.syntax.functor._
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto._
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.generic.auto._, io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
+import njanma.dto.Request.Type.{Type, ping, remove_table, subscribe_tables, unsubscribe_tables, update_table}
 
-sealed abstract class Request(val $type: String)
+sealed abstract class Request(val $type: Type)
 
 object Request {
 
-  case class Login(username: String, password: String) extends Request("login")
+  @JsonCodec final case class Ping(seq: Int) extends Request(ping)
 
-  case class Ping(seq: Int) extends Request("ping")
+  @JsonCodec final case class SubscribeTables() extends Request(subscribe_tables)
 
-  case class SubscribeTables() extends Request("subscribe_tables")
+  final case class UnsubscribeTables() extends Request(unsubscribe_tables)
 
-  case class UnsubscribeTables() extends Request("unsubscribe_tables")
+  @JsonCodec final case class TableRequest(id: Option[Long],
+                                     name: String,
+                                     participants: Int)
 
-  @JsonCodec case class TableRequest(id: Option[Long], name: String, participants: Int)
+  @JsonCodec final case class AddTable(after_id: Option[Long], table: TableRequest)
+      extends Request(subscribe_tables)
 
-  @JsonCodec case class AddTable(after_id: Option[Long], table: TableRequest)
-    extends Request("add_table")
+  final case class RemoveTable(id: Long) extends Request(remove_table)
 
-  case class RemoveTable(id: Long) extends Request("remove_table")
-
-  @JsonCodec case class UpdateTable(table: TableRequest) extends Request("update_table")
-
-  implicit val pongEncoder: Encoder[Ping] =
-    Encoder.forProduct2("$type", "seq")(ping => (ping.$type, ping.seq))
+  @JsonCodec final case class UpdateTable(table: TableRequest)
+      extends Request(update_table)
 
   implicit val decodeRequest: Decoder[Request] =
     List[Decoder[Request]](
-      Decoder[Login].widen,
       Decoder.instance(getDecoderByType),
       Decoder[Ping].widen,
       Decoder[AddTable].widen,
       Decoder[RemoveTable].widen,
       Decoder[UpdateTable].widen
     ).reduceLeft(_ or _)
-
 
   private def getDecoderByType(cursor: HCursor): Decoder.Result[Request] =
     cursor.downField("$type").as[String] match {
@@ -52,4 +51,12 @@ object Request {
         cursor.value.as[UpdateTable]
       case _ => Left(DecodingFailure("fail", Nil))
     }
+
+  object Type extends Enumeration {
+    type Type = Value
+    val ping, subscribe_tables, unsubscribe_tables, add_table, remove_table,
+    update_table = Value
+
+    implicit val typeDecoder: Decoder[Type] = Decoder.enumDecoder(Type)
+  }
 }
