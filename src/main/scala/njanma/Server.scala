@@ -4,7 +4,8 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
-import njanma.actor.TableActor
+import akka.util.Timeout
+import njanma.actor.{SubscribingActor, TableActor}
 import njanma.config.AppConfig
 import njanma.repository.{DbConnector, TableRepository, UserRepository}
 import njanma.security.UserAuthenticator
@@ -33,8 +34,9 @@ object Server extends App with WebSocketFlow {
   val userRepository: UserRepository = new UserRepository(dbConnector)
   override val connectionPath: String = appConfig.server.connectionPath
 
+  val subscribingActor: ActorRef = system.actorOf(SubscribingActor.props())
   override val tableActor: ActorRef =
-    system.actorOf(TableActor.props(tableRepository), "table-actor")
+    system.actorOf(TableActor.props(tableRepository, subscribingActor), "table-actor")
   override val userAuthenticator: UserAuthenticator = new UserAuthenticator(
     userRepository
   )

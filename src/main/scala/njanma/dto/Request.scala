@@ -29,6 +29,7 @@ object Request {
 
   @JsonCodec final case class UpdateTable(table: TableRequest)
       extends Request(update_table)
+  @JsonCodec final case class SubscribeChanged(response: Response) extends Request(Type.subscribe_changed)
 
   implicit val decodeRequest: Decoder[Request] =
     List[Decoder[Request]](
@@ -55,7 +56,7 @@ object Request {
   object Type extends Enumeration {
     type Type = Value
     val ping, subscribe_tables, unsubscribe_tables, add_table, remove_table,
-    update_table = Value
+    update_table, subscribe_changed = Value
 
     implicit val typeDecoder: Decoder[Type] = Decoder.enumDecoder(Type)
   }

@@ -7,14 +7,17 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Flow
+import akka.stream.actor.ActorPublisherMessage
+import akka.stream.impl.PublisherSource
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.Timeout
 import io.circe.parser._
 import io.circe.syntax._
-import njanma.dto.Request.{AddTable, Ping, RemoveTable, SubscribeTables, UpdateTable}
+import njanma.dto.Request.{AddTable, Ping, RemoveTable, SubscribeChanged, SubscribeTables, UpdateTable}
 import njanma.dto.Response.Pong
 import njanma.dto.{Request, Response}
 import njanma.security.UserAuthenticator
+import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
@@ -35,24 +38,23 @@ trait WebSocketFlow {
     path(connectionPath)(
       authenticateBasic(realm = "sec", userAuthenticator.check) { usr =>
         authorize(userAuthenticator.hasPermissions(usr)) {
-          handleWebSocketMessages(flow)
+      handleWebSocketMessages(flow)
         }
       }
     )
 
+
   private def flow: Flow[Message, Message, NotUsed] = {
     Flow[Message]
       .collect {
-        case tm: TextMessage => tm.textStream
-      }
-      .mapAsync(Runtime.getRuntime.availableProcessors)(
-        in =>
+        case TextMessage.Strict(text) =>
           for {
-            text <- in.runFold("")(_ + _)
-            json <- Future.fromTry(parse(text).toTry)
-            res <- Future.fromTry(json.as[Request].toTry)
+            json <- parse(text).toTry
+            res <- json.as[Request].toTry
           } yield res
-      )
+      }
+      .filter(_.isSuccess)
+      .map(_.get)
       .mapAsync(Runtime.getRuntime.availableProcessors) {
         case Ping(num)          => Future(Pong(num))
         case addTable: AddTable => (tableActor ? addTable).mapTo[Response]
@@ -62,6 +64,7 @@ trait WebSocketFlow {
           (tableActor ? subscribeTables).mapTo[Response]
         case removeTable: RemoveTable =>
           (tableActor ? removeTable).mapTo[Response]
+        case SubscribeChanged(changed) => Future(changed)
       }
       .mapAsync(Runtime.getRuntime.availableProcessors)(
         out => Future(TextMessage(out.asJson.spaces2))
