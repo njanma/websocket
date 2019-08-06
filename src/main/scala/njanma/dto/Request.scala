@@ -29,7 +29,6 @@ object Request {
 
   @JsonCodec final case class UpdateTable(table: TableRequest)
       extends Request(update_table)
-  @JsonCodec final case class SubscribeChanged(response: Response) extends Request(Type.subscribe_changed)
 
   implicit val decodeRequest: Decoder[Request] =
     List[Decoder[Request]](

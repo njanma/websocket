@@ -1,12 +1,10 @@
 package njanma.actor
 
 import akka.actor.{Actor, ActorRef, Props}
-import akka.http.scaladsl.model.ws.TextMessage
-import io.circe.syntax._
 import njanma.actor.SubscribingActor.{Event, Subscribe, Unsubscribe}
 import njanma.dto.Response
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 
 object SubscribingActor {
   sealed trait Events
@@ -19,15 +17,14 @@ object SubscribingActor {
 
 class SubscribingActor extends Actor {
   //TODO: this stub should be replaced by shared queue
-  private val subscribedActors: ListBuffer[ActorRef] = ListBuffer()
+  private val subscribedActors: mutable.HashSet[ActorRef] = mutable.HashSet()
 
   override def receive: Receive = {
-    case Subscribe(actor)   =>
+    case Subscribe(actor) =>
       subscribedActors += actor
-    case Unsubscribe(actor) => subscribedActors -= actor
+    case Unsubscribe(actor) =>
+      subscribedActors -= actor
     case Event(changed) =>
-      subscribedActors.foreach(
-        _.!(TextMessage.Strict(changed.asJson.noSpaces))
-      )
+      subscribedActors.foreach(_.!(changed))
   }
 }

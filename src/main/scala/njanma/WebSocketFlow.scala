@@ -1,23 +1,18 @@
 package njanma
 
 import akka.NotUsed
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
-import akka.stream.ActorMaterializer
-import akka.stream.actor.ActorPublisherMessage
-import akka.stream.impl.PublisherSource
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.util.Timeout
 import io.circe.parser._
 import io.circe.syntax._
-import njanma.dto.Request.{AddTable, Ping, RemoveTable, SubscribeChanged, SubscribeTables, UpdateTable}
-import njanma.dto.Response.Pong
+import njanma.actor.UserConnection
 import njanma.dto.{Request, Response}
 import njanma.security.UserAuthenticator
-import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
@@ -29,8 +24,9 @@ trait WebSocketFlow {
   implicit lazy val timeout: Timeout = Timeout(10 second)
 
   implicit def materializer: ActorMaterializer
-
+  def system: ActorSystem
   def tableActor: ActorRef
+  def subscribingActor: ActorRef
   def userAuthenticator: UserAuthenticator
   val connectionPath: String
 
@@ -38,36 +34,38 @@ trait WebSocketFlow {
     path(connectionPath)(
       authenticateBasic(realm = "sec", userAuthenticator.check) { usr =>
         authorize(userAuthenticator.hasPermissions(usr)) {
-      handleWebSocketMessages(flow)
+          handleWebSocketMessages(flow)
         }
       }
     )
 
+  def flow: Flow[Message, Message, _] = {
+    val connectedWsActor =
+      system.actorOf(UserConnection.props(tableActor, subscribingActor))
 
-  private def flow: Flow[Message, Message, NotUsed] = {
-    Flow[Message]
-      .collect {
-        case TextMessage.Strict(text) =>
-          for {
-            json <- parse(text).toTry
-            res <- json.as[Request].toTry
-          } yield res
-      }
-      .filter(_.isSuccess)
-      .map(_.get)
-      .mapAsync(Runtime.getRuntime.availableProcessors) {
-        case Ping(num)          => Future(Pong(num))
-        case addTable: AddTable => (tableActor ? addTable).mapTo[Response]
-        case updateTable: UpdateTable =>
-          (tableActor ? updateTable).mapTo[Response]
-        case subscribeTables: SubscribeTables =>
-          (tableActor ? subscribeTables).mapTo[Response]
-        case removeTable: RemoveTable =>
-          (tableActor ? removeTable).mapTo[Response]
-        case SubscribeChanged(changed) => Future(changed)
-      }
-      .mapAsync(Runtime.getRuntime.availableProcessors)(
-        out => Future(TextMessage(out.asJson.spaces2))
-      )
+    val incomingMessages: Sink[Message, NotUsed] =
+      Flow[Message]
+        .map {
+          case TextMessage.Strict(text) =>
+            for {
+              json <- parse(text).toTry
+              res <- json.as[Request].toTry
+            } yield res
+        }
+        .filter(_.isSuccess)
+        .map(_.get)
+        .to(Sink.actorRef(connectedWsActor, PoisonPill))
+
+    val outgoingMessages: Source[Message, NotUsed] =
+      Source
+        .actorRef[Response](10, OverflowStrategy.fail)
+        .mapMaterializedValue { outgoingActor =>
+          connectedWsActor ! UserConnection.Connected(outgoingActor)
+          NotUsed
+        }
+        .mapAsync(Runtime.getRuntime.availableProcessors)(
+          out => Future(TextMessage(out.asJson.spaces2))
+        )
+    Flow.fromSinkAndSource(incomingMessages, outgoingMessages)
   }
 }

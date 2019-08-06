@@ -50,15 +50,6 @@ class TableActor(repository: TableRepository, subscribingActor: ActorRef)
       )
       sender() ! tableUpdated
       subscribingActor ! SubscribingActor.Event(tableUpdated)
-    case SubscribeTables() =>
-      sender() ! TableList(
-        repository
-          .getAll()
-          .transact(xa)
-          .unsafeRunSync()
-          .map(TableResponse.apply)
-      )
-      subscribingActor ! SubscribingActor.Subscribe(sender())
     case RemoveTable(id) =>
       repository.delete(id).transact(xa).unsafeRunSync()
   }

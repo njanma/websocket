@@ -5,7 +5,8 @@ import njanma.dto.Response.Type.Type
 import njanma.entity.Table
 import io.circe._
 import io.circe.generic.semiauto._
-import io.circe.generic.auto._, io.circe.syntax._
+import io.circe.generic.auto._
+import io.circe.syntax._
 
 sealed abstract class Response(val $type: Type)
 

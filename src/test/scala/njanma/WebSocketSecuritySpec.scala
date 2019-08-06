@@ -1,6 +1,6 @@
 package njanma
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.AuthenticationFailedRejection
@@ -21,6 +21,7 @@ class WebSocketSecuritySpec
     with MockFactory
     with OneInstancePerTest {
   private val testMaterializer = this.materializer
+  private val testSystem = this.system
   private val fakeAuth = stub[FakeAuth]
   private val route = new WebSocketFlow {
     override implicit def materializer: ActorMaterializer = testMaterializer
@@ -28,6 +29,9 @@ class WebSocketSecuritySpec
       system.actorOf(TestActors.echoActorProps)
     override def userAuthenticator: UserAuthenticator = fakeAuth
     override val connectionPath: String = "connect"
+    override def system: ActorSystem = testSystem
+    override def subscribingActor: ActorRef =
+      system.actorOf(TestActors.echoActorProps)
   }.webSocketRoute
   class FakeAuth extends UserAuthenticator(mock[UserRepository])
   val fakeUser = User("john", "p4ssw0rd", "admin")
