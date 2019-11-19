@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.implicits._
 import doobie.Transactor
 import doobie.implicits._
-import njanma.config.{DbConfig}
+import njanma.config.DbConfig
 
 import scala.concurrent.ExecutionContext
 

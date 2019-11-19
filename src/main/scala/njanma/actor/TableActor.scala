@@ -1,12 +1,14 @@
 package njanma.actor
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cats.effect.IO
 import doobie.implicits._
-import njanma.dto.Request.{AddTable, RemoveTable, SubscribeTables, UpdateTable}
-import njanma.dto.Response.{TableAdded, TableList, TableResponse, TableUpdated}
+import njanma.dto.Request.{AddTable, RemoveTable, UpdateTable}
+import njanma.dto.Response.{TableAdded, TableUpdated}
 import njanma.entity.Table
 import njanma.repository.TableRepository
 
+import scala.concurrent.ExecutionContext.Implicits._
 import scala.language.postfixOps
 
 object TableActor {
@@ -21,15 +23,18 @@ class TableActor(repository: TableRepository, subscribingActor: ActorRef)
   private val xa = repository.xa
 
   override def receive: Receive = {
+
     case AddTable(None, table) =>
-      val tableAdded = TableAdded(
-        repository
-          .save(Table(table))
-          .transact(xa)
-          .unsafeRunSync()
-      )
-      sender() ! tableAdded
-      subscribingActor ! SubscribingActor.Event(tableAdded)
+      repository
+        .save(Table(table))
+        .transact(xa)
+        .unsafeToFuture()
+        .map(TableAdded(_))
+        .foreach { tableAdded =>
+          sender() ! tableAdded
+          subscribingActor ! SubscribingActor.Event(tableAdded)
+        }
+
     case AddTable(after_id @ Some(afterId), table) =>
       val newTable = for {
         tables <- repository.getAllAfterId(afterId)
@@ -40,17 +45,33 @@ class TableActor(repository: TableRepository, subscribingActor: ActorRef)
         byAfterId <- repository.getOne(afterId)
         newbie <- repository.save(Table(byAfterId.position.map(_ + 1), table))
       } yield newbie
-      val tableAdded =
-        TableAdded(after_id, newTable.transact(xa).unsafeRunSync())
-      sender() ! tableAdded
-      subscribingActor ! SubscribingActor.Event(tableAdded)
+      newTable
+        .transact(xa)
+        .unsafeToFuture()
+        .map(TableAdded(after_id, _))
+        .foreach { tableAdded =>
+          sender() ! tableAdded
+          subscribingActor ! SubscribingActor.Event(tableAdded)
+        }
+
     case UpdateTable(table) =>
-      val tableUpdated = TableUpdated(
-        repository.update(Table(table)).transact(xa).unsafeRunSync()
-      )
-      sender() ! tableUpdated
-      subscribingActor ! SubscribingActor.Event(tableUpdated)
+      repository
+        .update(Table(table))
+        .transact(xa)
+        .unsafeToFuture()
+        .map(TableUpdated(_))
+        .foreach { table =>
+          sender() ! table
+          subscribingActor ! SubscribingActor.Event(table)
+        }
+
     case RemoveTable(id) =>
-      repository.delete(id).transact(xa).unsafeRunSync()
+      repository
+        .delete(id)
+        .transact(xa)
+        .runAsync {
+          case Left(ex) => IO(ex.printStackTrace())
+          case Right(_) => IO.unit
+        }
   }
 }
